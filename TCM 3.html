@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TCM • Craving Machine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lucide-static@0.344.0/font/lucide.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        
+        :root {
+            --emerald-400: #34d399;
+            --emerald-500: #10b981;
+            --emerald-600: #059669;
+            --zinc-950: #09090b;
+            --zinc-900: #18181b;
+            --zinc-800: #27272a;
+            --zinc-700: #3f3f46;
+            --zinc-500: #71717a;
+            --zinc-400: #a1a1aa;
+        }
+
+        body { 
+            font-family: 'Inter', system-ui, sans-serif; 
+            background-color: var(--zinc-950);
+            color: #f4f4f5;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        .animate-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-pop {
+            animation: zoomIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--zinc-700);
+            border-radius: 10px;
+        }
+
+        input[list]::-webkit-calendar-picker-indicator {
+            display: none !important;
+        }
+        
+        .selected-btn {
+            border-color: var(--emerald-500) !important;
+            background-color: rgba(16, 185, 129, 0.1) !important;
+            color: var(--emerald-400) !important;
+        }
+
+        .active-scale:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 selection:bg-emerald-500/30">
+
+<div id="app" class="max-w-md mx-auto p-4">
+    <!-- HEADER -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-emerald-400">The Craving Machine</h1>
+        <button onclick="toggleSettingsModal(true)" class="text-xs text-zinc-400 hover:text-white">⚙️ Settings</button>
+    </div>
+
+    <!-- STATUS + TOTAL RUNS -->
+    <div class="bg-zinc-900 rounded-2xl p-4 mb-6 flex justify-between items-center">
+        <div class="text-center text-emerald-400 text-sm font-medium flex items-center gap-2">
+            <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+            TCM ACTIVE
+        </div>
+        <div class="text-right">
+            <div class="text-xs text-zinc-500">Total Runs</div>
+            <div id="totalRunsDisplay" class="text-emerald-400 font-mono text-2xl font-bold">0</div>
+        </div>
+    </div>
+
+    <!-- TRIGGER -->
+    <div class="bg-zinc-900 rounded-2xl p-5 mb-6">
+        <h2 class="text-lg font-semibold mb-4">Log Interaction</h2>
+        
+        <div class="mb-4">
+            <input id="personInput" list="personDatalist" 
+                   class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-lg focus:outline-none focus:border-emerald-500"
+                   placeholder="Name">
+            <datalist id="personDatalist"></datalist>
+        </div>
+
+        <div id="notesContainer" class="mb-4 hidden animate-in">
+            <label class="block text-xs text-zinc-400 mb-1">Notes</label>
+            <textarea id="notesInput" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 h-20 resize-y focus:outline-none focus:border-emerald-500" placeholder="Optional notes..."></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <button onclick="setCategory('no')" id="catBtn-no"
+                    class="py-4 rounded-2xl text-sm font-medium border-2 border-zinc-700">Said No</button>
+            <button onclick="setCategory('comp')" id="catBtn-comp"
+                    class="py-4 rounded-2xl text-xs font-medium border-2 border-zinc-700">Compliment/Command</button>
+        </div>
+        <button onclick="setCategory('other')" id="catBtn-other"
+                class="w-full py-3 rounded-2xl text-sm font-medium border-2 border-zinc-700 bg-zinc-800 hover:bg-zinc-700 mb-4">Other</button>
+
+        <div class="flex items-center gap-3">
+            <button onclick="handleRunTCM()" id="runBtn"
+                    class="run-btn flex-1 py-5 bg-emerald-500 hover:bg-emerald-600 transition text-xl font-semibold rounded-2xl">
+                RUN TCM
+            </button>
+            <button onclick="handleCheckCount()" 
+                    class="text-xs text-zinc-400 underline hover:text-zinc-300">Check Count</button>
+        </div>
+    </div>
+
+    <!-- INLINE RESULT -->
+    <div id="resultPanel" class="hidden bg-zinc-900 rounded-2xl p-6 mb-6 result-pop text-center">
+        <div id="resultMain" class="text-6xl font-black"></div>
+        <div id="resultExtra" class="mt-4 text-emerald-400 text-lg"></div>
+        <div id="resultClear" class="mt-6 hidden">
+            <button id="clearPersonBtn" class="text-xs text-zinc-400 underline hover:text-red-400 px-4 py-2 transition-colors">
+                Clear this person's data
+            </button>
+        </div>
+        <button onclick="closeResult()" class="mt-6 w-full py-3 text-zinc-400 text-sm underline">Close</button>
+    </div>
+
+    <!-- RECENT RUNS -->
+    <div class="bg-zinc-900 rounded-2xl p-5">
+        <div onclick="toggleHistory()" class="flex justify-between items-center cursor-pointer">
+            <h2 class="text-sm text-zinc-400">
+                Recent Runs <span id="historyCount" class="font-mono">(0)</span>
+            </h2>
+            <span id="historyArrow" class="hidden text-zinc-400 text-xl transition-transform">▼</span>
+        </div>
+        <div id="historyList" class="hidden mt-4 space-y-3 text-sm animate-in">
+            <!-- Items injected here -->
+        </div>
+    </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="hidden fixed inset-0 bg-zinc-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold text-zinc-100">TCM Settings</h2>
+            <button onclick="toggleSettingsModal(false)" class="text-zinc-400 text-xl">✕</button>
+        </div>
+        
+        <button onclick="openStats()" class="w-full py-4 bg-zinc-800 hover:bg-zinc-700 rounded-2xl font-medium text-zinc-300 mb-8 border border-zinc-700/50 transition-all">
+            Open Internal Stats
+        </button>
+
+        <div class="mb-8">
+            <h3 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-1">Data Management</h3>
+            <div class="space-y-3">
+                <button onclick="exportData()" class="w-full flex items-center justify-center gap-2 py-3.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/50 rounded-xl font-medium transition-colors">
+                    <i class="lucide-download w-4 h-4"></i> Save Data to File
+                </button>
+                <button onclick="document.getElementById('importFile').click()" class="w-full flex items-center justify-center gap-2 py-3.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/50 rounded-xl font-medium transition-colors">
+                    <i class="lucide-upload w-4 h-4"></i> Load Data from File
+                </button>
+                <input type="file" id="importFile" accept=".json" onchange="importData(event)" class="hidden">
+                <p class="text-xs text-zinc-500 text-center mt-2 px-2">Export your data to a JSON file to save it to your device, and load it from any device.</p>
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-zinc-800">
+            <button onclick="resetAllData()" class="w-full py-3 text-sm text-red-500/70 hover:text-red-400 font-medium transition-colors rounded-xl hover:bg-red-500/10">
+                Reset All Data
+            </button>
+        </div>
+
+        <button onclick="toggleSettingsModal(false)" class="mt-6 w-full py-3 text-zinc-400 text-sm underline">Close</button>
+    </div>
+</div>
+
+<!-- STATS MODAL -->
+<div id="statsModal" class="hidden fixed inset-0 bg-zinc-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl animate-in custom-scrollbar">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-emerald-400">Internal Stats</h2>
+            <button onclick="toggleStatsModal(false)" class="text-zinc-400 text-xl">✕</button>
+        </div>
+        
+        <div class="space-y-6">
+            <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-5">
+                <div class="text-sm text-zinc-500 font-medium">TOTAL RUNS EVER</div>
+                <div id="bigTotalRuns" class="text-5xl font-mono text-emerald-400 mt-2 tracking-tight">0</div>
+            </div>
+            
+            <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-5">
+                <div onclick="toggleSection('counts')" class="flex justify-between items-center cursor-pointer group">
+                    <div class="text-sm text-zinc-400 font-medium group-hover:text-zinc-300">
+                        PERSON COUNTS <span id="personCountLabel" class="font-mono text-zinc-500">(0)</span>
+                    </div>
+                    <i id="countsArrow" class="lucide-chevron-down w-5 h-5 text-zinc-400"></i>
+                </div>
+                <div id="countsList" class="hidden mt-4 space-y-2 text-sm max-h-60 overflow-y-auto pr-2 custom-scrollbar"></div>
+            </div>
+            
+            <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-5">
+                <div class="text-sm text-zinc-400 font-medium mb-4">EDITABLE SETTINGS</div>
+                <div class="mb-4">
+                    <label class="block text-xs text-zinc-500 mb-1.5">Probabilities (%)</label>
+                    <input id="settingProbs" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:border-emerald-500 text-zinc-300">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-zinc-500 mb-1.5">Block min</label>
+                        <input id="settingMin" type="number" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 font-mono focus:outline-none focus:border-emerald-500 text-zinc-300">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-zinc-500 mb-1.5">Block max</label>
+                        <input id="settingMax" type="number" class="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 font-mono focus:outline-none focus:border-emerald-500 text-zinc-300">
+                    </div>
+                </div>
+                <button onclick="handleSaveSettings()" class="mt-6 w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 rounded-xl font-bold transition-all shadow-lg shadow-emerald-500/20 active-scale">
+                    SAVE SETTINGS
+                </button>
+            </div>
+            
+            <div class="bg-zinc-950/50 border border-zinc-800/80 rounded-2xl p-5">
+                <div onclick="toggleSection('debug')" class="flex justify-between items-center cursor-pointer group">
+                    <div class="text-sm text-rose-400 font-medium">Current Stats (Do not open)</div>
+                    <i id="debugArrow" class="lucide-chevron-down w-5 h-5 text-rose-400/70"></i>
+                </div>
+                <div id="debugContent" class="hidden mt-4 animate-in">
+                    <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-5">
+                        <div class="text-sm text-emerald-500 font-medium mb-1">CURRENT BLOCK</div>
+                        <div id="debugBlockInfo" class="text-2xl font-mono text-emerald-400 tracking-tight">Next run starts new block</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="toggleStatsModal(false)" class="mt-8 w-full py-3 text-zinc-400 text-sm underline">Close</button>
+    </div>
+</div>
+
+<script>
+    // State
+    let state = {
+        data: { persons: {}, currentProb: null, blockRemaining: 0, history: [], totalRuns: 0 },
+        settings: { probs: [5, 10, 20, 30, 40, 50, 60], blockMin: 2, blockMax: 10 },
+        ui: { category: 'no', historyVisible: false }
+    };
+
+    // Initialization
+    function init() {
+        const savedData = localStorage.getItem('tcmData');
+        const savedSettings = localStorage.getItem('tcmSettings');
+        if (savedData) try { state.data = JSON.parse(savedData); } catch(e) {}
+        if (savedSettings) try { state.settings = JSON.parse(savedSettings); } catch(e) {}
+        
+        render();
+        setCategory('no');
+    }
+
+    function save() {
+        localStorage.setItem('tcmData', JSON.stringify(state.data));
+        localStorage.setItem('tcmSettings', JSON.stringify(state.settings));
+        render();
+    }
+
+    // Logic
+    function primeBlock() {
+        const probs = state.settings.probs;
+        state.data.currentProb = probs[Math.floor(Math.random() * probs.length)];
+        const range = state.settings.blockMax - state.settings.blockMin + 1;
+        state.data.blockRemaining = Math.floor(Math.random() * range) + state.settings.blockMin;
+    }
+
+    function handleRunTCM() {
+        if (state.data.blockRemaining <= 0 || !state.data.currentProb) primeBlock();
+        
+        const name = document.getElementById('personInput').value.trim() || "Anonymous";
+        const rewarded = Math.random() < (state.data.currentProb / 100);
+        
+        state.data.blockRemaining--;
+        state.data.totalRuns++;
+
+        if (!state.data.persons[name]) state.data.persons[name] = { no: 0, comp: 0, other: 0 };
+        
+        let newCount = 0;
+        let showLimit = false;
+        let notes = "";
+
+        if (state.ui.category !== 'other') {
+            state.data.persons[name][state.ui.category]++;
+            newCount = state.data.persons[name][state.ui.category];
+            showLimit = newCount % 5 === 0;
+        } else {
+            state.data.persons[name].other++;
+            notes = document.getElementById('notesInput').value.trim();
+        }
+
+        const entry = {
+            time: new Date().toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }),
+            person: name,
+            category: state.ui.category === 'no' ? 'No' : state.ui.category === 'comp' ? 'Cmd' : 'Other',
+            rewarded,
+            notes: notes || undefined
+        };
+
+        state.data.history.unshift(entry);
+        if (state.data.history.length > 30) state.data.history.pop();
+
+        // Success animation
+        const btn = document.getElementById('runBtn');
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="lucide-check w-6 h-6"></i> LOGGED';
+        btn.classList.add('bg-emerald-600', 'scale-[0.98]');
+        setTimeout(() => {
+            btn.innerHTML = originalContent;
+            btn.classList.remove('bg-emerald-600', 'scale-[0.98]');
+        }, 1000);
+
+        showResult(
+            rewarded ? `<span class="text-emerald-400">REWARD<br>GRANTED</span>` : `<span class="text-amber-400">NOTHING</span>`,
+            showLimit ? `Limit reached: ${newCount} times with ${name}` : ""
+        );
+        
+        save();
+    }
+
+    function handleCheckCount() {
+        const name = document.getElementById('personInput').value.trim() || "Anonymous";
+        const p = state.data.persons[name];
+        if (!p) {
+            showResult(`<span class="text-2xl text-amber-400">No records yet</span>`, `for ${name}`, true, name);
+            return;
+        }
+        showResult(
+            `<span class="text-xl font-medium">${name}</span>`,
+            `"No": ${p.no} • Cmt/Cmd: ${p.comp} • Other: ${p.other}`,
+            true, name
+        );
+    }
+
+    // UI Actions
+    function setCategory(cat) {
+        state.ui.category = cat;
+        ['no', 'comp', 'other'].forEach(c => {
+            document.getElementById(`catBtn-${c}`).classList.toggle('selected-btn', c === cat);
+        });
+        document.getElementById('notesContainer').classList.toggle('hidden', cat !== 'other');
+    }
+
+    function showResult(main, extra, isCheck = false, name = "") {
+        document.getElementById('resultMain').innerHTML = main;
+        document.getElementById('resultExtra').innerHTML = extra;
+        document.getElementById('resultClear').classList.toggle('hidden', !isCheck);
+        if (isCheck) {
+            document.getElementById('clearPersonBtn').onclick = () => {
+                if (confirm(`Clear ALL data for ${name}?`)) {
+                    delete state.data.persons[name];
+                    state.data.history = state.data.history.filter(e => e.person !== name);
+                    save();
+                    closeResult();
+                }
+            };
+        }
+        document.getElementById('resultPanel').classList.remove('hidden');
+    }
+
+    function closeResult() {
+        document.getElementById('resultPanel').classList.add('hidden');
+        document.getElementById('personInput').value = "";
+        document.getElementById('notesInput').value = "";
+    }
+
+    function toggleHistory() {
+        state.ui.historyVisible = !state.ui.historyVisible;
+        document.getElementById('historyList').classList.toggle('hidden', !state.ui.historyVisible);
+        document.getElementById('historyArrow').style.transform = state.ui.historyVisible ? 'rotate(180deg)' : '';
+    }
+
+    function toggleSettingsModal(open) {
+        document.getElementById('settingsModal').classList.toggle('hidden', !open);
+    }
+
+    function openStats() {
+        toggleSettingsModal(false);
+        document.getElementById('settingProbs').value = state.settings.probs.join(',');
+        document.getElementById('settingMin').value = state.settings.blockMin;
+        document.getElementById('settingMax').value = state.settings.blockMax;
+        toggleStatsModal(true);
+    }
+
+    function toggleStatsModal(open) {
+        document.getElementById('statsModal').classList.toggle('hidden', !open);
+        if (open) renderStats();
+    }
+
+    function toggleSection(id) {
+        const el = document.getElementById(id === 'counts' ? 'countsList' : 'debugContent');
+        const arrow = document.getElementById(id === 'counts' ? 'countsArrow' : 'debugArrow');
+        const hidden = el.classList.contains('hidden');
+        el.classList.toggle('hidden', !hidden);
+        arrow.style.transform = hidden ? 'rotate(180deg)' : '';
+    }
+
+    function handleSaveSettings() {
+        const probs = document.getElementById('settingProbs').value.split(',').map(n => parseInt(n.trim())).filter(n => !isNaN(n));
+        state.settings.probs = probs.length ? probs : [5, 10, 20, 30, 40, 50, 60];
+        state.settings.blockMin = parseInt(document.getElementById('settingMin').value) || 2;
+        state.settings.blockMax = parseInt(document.getElementById('settingMax').value) || 10;
+        if (state.settings.blockMax < state.settings.blockMin) state.settings.blockMax = state.settings.blockMin + 1;
+        save();
+        alert('✅ Settings saved!');
+        toggleStatsModal(false);
+    }
+
+    function resetAllData() {
+        if (confirm('Are you sure you want to delete ALL data?') && prompt('Type DELETE to confirm:') === 'DELETE') {
+            localStorage.clear();
+            location.reload();
+        }
+    }
+
+    // Data Mgmt
+    function exportData() {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `TCM_Backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+    }
+
+    function importData(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const imported = JSON.parse(ev.target.result);
+                if (imported.data && imported.settings) {
+                    state = imported;
+                    save();
+                    alert('✅ Data imported successfully!');
+                    toggleSettingsModal(false);
+                } else { alert('Invalid file format.'); }
+            } catch(err) { alert('Error parsing file.'); }
+        };
+        reader.readAsText(file);
+    }
+
+    // Rendering
+    function render() {
+        document.getElementById('totalRunsDisplay').innerText = state.data.totalRuns;
+        document.getElementById('historyCount').innerText = `(${state.data.history.length})`;
+        
+        // History
+        const histEl = document.getElementById('historyList');
+        histEl.innerHTML = state.data.history.map(entry => `
+            <div class="flex justify-between py-2 border-b border-zinc-800/50 last:border-0 items-start">
+                <div class="flex-1">
+                    <span class="font-medium text-zinc-200">${entry.person}</span> 
+                    <span class="text-xs text-zinc-500">(${entry.category})</span>
+                    ${entry.notes ? `<div class="text-xs text-zinc-500 italic mt-1">"${entry.notes}"</div>` : ''}
+                </div>
+                <div class="text-right">
+                    <div class="${entry.rewarded ? "text-emerald-400 font-medium" : "text-amber-400"}">
+                        ${entry.rewarded ? "GRANTED" : "NOTHING"}
+                    </div>
+                    <div class="text-[10px] text-zinc-500 mt-1">${entry.time}</div>
+                </div>
+            </div>
+        `).join('') || '<div class="text-zinc-500 text-center italic py-4">No recent runs</div>';
+
+        // Datalist
+        const dl = document.getElementById('personDatalist');
+        const names = Object.keys(state.data.persons).sort();
+        dl.innerHTML = names.map(n => `<option value="${n}">`).join('');
+    }
+
+    function renderStats() {
+        document.getElementById('bigTotalRuns').innerText = state.data.totalRuns;
+        const names = Object.keys(state.data.persons).sort();
+        document.getElementById('personCountLabel').innerText = `(${names.length})`;
+        
+        document.getElementById('countsList').innerHTML = names.map(n => `
+            <div class="flex flex-col sm:flex-row sm:justify-between bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm gap-2">
+                <div class="font-medium text-zinc-300">${n}</div>
+                <div class="font-mono text-zinc-500 text-xs sm:text-sm">
+                    No:${state.data.persons[n].no} • Cmd:${state.data.persons[n].comp} • Oth:${state.data.persons[n].other}
+                </div>
+            </div>
+        `).join('') || '<div class="text-zinc-500 italic text-center py-4">No people tracked yet</div>';
+
+        document.getElementById('debugBlockInfo').innerText = state.data.currentProb 
+            ? `${state.data.currentProb}% • ${state.data.blockRemaining} left`
+            : "Next run starts new block";
+    }
+
+    init();
+</script>
+
+</body>
+</html>
